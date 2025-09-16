@@ -1,0 +1,14 @@
+paths:
+  raw_data: data/sp500.csv
+  processed: data/prepared/sp500_prepared.csv
+  train: data/split/train.csv
+  test: data/split/test.csv
+  model: models/poly_lr.pkl
+  metrics: eval/metrics.json
+  preds: eval/preds.csv
+
+train:
+  test_size: 0.2
+  shuffle: true
+  random_state: 42
+  degree: 3

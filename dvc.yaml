@@ -1,0 +1,56 @@
+stages:
+  prepare:
+    cmd: python src/prepare.py
+    deps:
+    - src/prepare.py
+    - data/sp500.csv
+    params:
+    - paths.raw_data
+    - paths.processed
+    outs:
+    - data/prepared/sp500_prepared.csv
+
+  split:
+    cmd: python src/split.py
+    deps:
+    - src/split.py
+    - data/prepared/sp500_prepared.csv
+    params:
+    - paths.processed
+    - paths.train
+    - paths.test
+    - train.test_size
+    - train.shuffle
+    - train.random_state
+    outs:
+    - data/split/train.csv
+    - data/split/test.csv
+
+  train:
+    cmd: python src/train.py
+    deps:
+    - src/train.py
+    - data/split/train.csv
+    params:
+    - paths.train
+    - paths.model
+    - train.degree
+    outs:
+    - models/poly_lr.pkl
+
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - src/evaluate.py
+    - data/split/test.csv
+    - models/poly_lr.pkl
+    params:
+    - paths.test
+    - paths.model
+    - paths.metrics
+    - paths.preds
+    metrics:
+    - eval/metrics.json:
+        cache: false
+    plots:
+    - eval/preds.csv

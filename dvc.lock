@@ -1,0 +1,101 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python src/prepare.py
+    deps:
+    - path: data/sp500.csv
+      hash: md5
+      md5: 16b2a166ae64466c4d2732001a2fffce
+      size: 305513
+    - path: src/prepare.py
+      hash: md5
+      md5: f2e88f0628408d979f4b7d507e12b65d
+      size: 583
+    params:
+      params.yaml:
+        paths.processed: data/prepared/sp500_prepared.csv
+        paths.raw_data: data/sp500.csv
+    outs:
+    - path: data/prepared/sp500_prepared.csv
+      hash: md5
+      md5: b590c2dfde4dadb76f2fdc5a7518130f
+      size: 256431
+  split:
+    cmd: python src/split.py
+    deps:
+    - path: data/prepared/sp500_prepared.csv
+      hash: md5
+      md5: b590c2dfde4dadb76f2fdc5a7518130f
+      size: 256431
+    - path: src/split.py
+      hash: md5
+      md5: 2371df53795467c5f312319482577c3e
+      size: 990
+    params:
+      params.yaml:
+        paths.processed: data/prepared/sp500_prepared.csv
+        paths.test: data/split/test.csv
+        paths.train: data/split/train.csv
+        train.random_state: 42
+        train.shuffle: true
+        train.test_size: 0.2
+    outs:
+    - path: data/split/test.csv
+      hash: md5
+      md5: c321cd7ac350468d356a4af8d3e2fa7c
+      size: 10861
+    - path: data/split/train.csv
+      hash: md5
+      md5: 7adb98264b2094139f395bf6e7e0e08e
+      size: 43439
+  train:
+    cmd: python src/train.py
+    deps:
+    - path: data/split/train.csv
+      hash: md5
+      md5: 7adb98264b2094139f395bf6e7e0e08e
+      size: 43439
+    - path: src/train.py
+      hash: md5
+      md5: a2ad3a3cbd6354cb05a090bf56ce777b
+      size: 747
+    params:
+      params.yaml:
+        paths.model: models/poly_lr.pkl
+        paths.train: data/split/train.csv
+        train.degree: 3
+    outs:
+    - path: models/poly_lr.pkl
+      hash: md5
+      md5: 3bf9f4bc34e0d7d4a1a1ec13dc1a8441
+      size: 690
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - path: data/split/test.csv
+      hash: md5
+      md5: c321cd7ac350468d356a4af8d3e2fa7c
+      size: 10861
+    - path: models/poly_lr.pkl
+      hash: md5
+      md5: 3bf9f4bc34e0d7d4a1a1ec13dc1a8441
+      size: 690
+    - path: src/evaluate.py
+      hash: md5
+      md5: 622e9961833ee45719894fe30867f346
+      size: 1150
+    params:
+      params.yaml:
+        paths.metrics: eval/metrics.json
+        paths.model: models/poly_lr.pkl
+        paths.preds: eval/preds.csv
+        paths.test: data/split/test.csv
+    outs:
+    - path: eval/metrics.json
+      hash: md5
+      md5: 4f55521ca3f1ac33a646f803bbef4f22
+      size: 77
+    - path: eval/preds.csv
+      hash: md5
+      md5: 8142471dfb3723aec1c0bbf7f7beb26e
+      size: 29281
