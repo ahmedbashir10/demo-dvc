@@ -1,0 +1,119 @@
+name: DVC Experiments
+
+on:
+  push:
+    paths:
+      - "src/**"
+      - "dvc.yaml"
+      - "params.yaml"
+      - ".github/workflows/dvc-experiments.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "dvc.yaml"
+      - "params.yaml"
+      - ".github/workflows/dvc-experiments.yml"
+  workflow_dispatch:
+    inputs:
+      degrees:
+        description: "Comma-separated degrees (optional, overrides params.yaml)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write   
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Python (for parsing YAML)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install parser deps
+        run: pip install pyyaml
+      - id: set-matrix
+        run: |
+          python - <<'PY' > matrix.json
+          import os, json, yaml
+          # 1) manual override via workflow_dispatch input
+          override = os.environ.get("INPUT_DEGREES","").strip()
+          if override:
+              degrees = [int(x) for x in override.split(",") if x.strip()]
+          else:
+              with open("params.yaml") as f:
+                  p = yaml.safe_load(f)
+              degrees = p.get("ci",{}).get("degrees", [p.get("train",{}).get("degree", 3)])
+          print(json.dumps({"degree": degrees}))
+          PY
+          echo "matrix=$(cat matrix.json)" >> "$GITHUB_OUTPUT"
+
+  run-experiments:
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+          pip install dvc
+
+      - name: Build baseline
+        run: dvc repro
+
+      - name: Run experiment (degree=${{ matrix.degree }})
+        run: |
+          dvc exp run -S train.degree=${{ matrix.degree }}
+          mkdir -p ci_artifacts/${{ matrix.degree }}
+          cp eval/metrics.json ci_artifacts/${{ matrix.degree }}/metrics_${{ matrix.degree }}.json
+          dvc plots show -x idx -y y_true,y_pred eval/preds.csv -o ci_artifacts/${{ matrix.degree }}/preds_${{ matrix.degree }}.html
+          echo "### Degree ${{ matrix.degree }}" >> $GITHUB_STEP_SUMMARY
+          python - <<'PY' >> $GITHUB_STEP_SUMMARY
+          import json
+          m = json.load(open("eval/metrics.json"))
+          print(f"- MAE: {m['MAE']}\n- RMSE: {m['RMSE']}\n- n_test: {m['n_test']}")
+          PY
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dvc-exp-artifacts-degree-${{ matrix.degree }}
+          path: ci_artifacts/${{ matrix.degree }}
+          if-no-files-found: error
+
+      - name: Save & push DVC experiment refs
+        if: github.event_name != 'pull_request'  
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dvc exp save -n ci-deg-${{ matrix.degree }}
+          dvc exp push origin ci-deg-${{ matrix.degree }}
