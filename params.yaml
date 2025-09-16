@@ -11,4 +11,4 @@ train:
   test_size: 0.2
   shuffle: true
   random_state: 42
-  degree: 5
+  degree: 4

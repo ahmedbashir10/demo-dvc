@@ -63,12 +63,12 @@ stages:
       params.yaml:
         paths.model: models/poly_lr.pkl
         paths.train: data/split/train.csv
-        train.degree: 5
+        train.degree: 4
     outs:
     - path: models/poly_lr.pkl
       hash: md5
-      md5: b735889f0b2371854b04de4f5babe453
-      size: 722
+      md5: d05fd1d9583e65c2c2c5ff4d190443c9
+      size: 706
   evaluate:
     cmd: python src/evaluate.py
     deps:
@@ -78,8 +78,8 @@ stages:
       size: 10861
     - path: models/poly_lr.pkl
       hash: md5
-      md5: b735889f0b2371854b04de4f5babe453
-      size: 722
+      md5: d05fd1d9583e65c2c2c5ff4d190443c9
+      size: 706
     - path: src/evaluate.py
       hash: md5
       md5: 622e9961833ee45719894fe30867f346
@@ -93,9 +93,9 @@ stages:
     outs:
     - path: eval/metrics.json
       hash: md5
-      md5: 4860053bc5bdad46758fa89b5c593179
-      size: 77
+      md5: a52783a4eadb925225866e3ec03047f3
+      size: 78
     - path: eval/preds.csv
       hash: md5
-      md5: 5cd8dfc5a63b246b3cc28be848882d3c
-      size: 29215
+      md5: 3f699872e9574027985c1f75fe3a7110
+      size: 29248
